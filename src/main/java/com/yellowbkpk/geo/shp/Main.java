@@ -1,7 +1,5 @@
 package com.yellowbkpk.geo.shp;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -13,7 +11,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.commons.lang.StringEscapeUtils;
 
 import com.yellowbkpk.geo.glom.GlommingFilter;
 import com.yellowbkpk.osm.output.OSMChangeOutputter;
@@ -21,7 +18,6 @@ import com.yellowbkpk.osm.output.OSMOldOutputter;
 import com.yellowbkpk.osm.output.OSMOutputter;
 import com.yellowbkpk.osm.output.OutputFilter;
 import com.yellowbkpk.osm.output.SaveEverything;
-import com.yellowbkpk.osm.primitive.PrimitiveTypeEnum;
 
 /**
  * @author Ian Dees
@@ -33,6 +29,16 @@ public class Main {
 
     private static final String GENERATOR_STRING = "shp-to-osm 0.7";
 
+    private static String OPT_SHAPEFILE = "shapefile";
+    private static String OPT_RULESFILE = "rulesfile";
+    private static String OPT_OSMFILE = "osmfile";
+    private static String OPT_OUTDIR = "outdir";
+    private static String OPT_MAXNODES = "maxnodes";
+    private static String OPT_OUTPUTFORMAT = "outputFormat";
+    private static String OPT_GLOMKEY = "glomKey";
+    private static String OPT_COPYTAGS = "copyTags";
+    private static String OPT_T = "t";
+    
     /**
      * @param args
      */
@@ -40,65 +46,66 @@ public class Main {
         
         CommandLineParser parser = new GnuParser();
         Options options = new Options();
-        options.addOption(OptionBuilder.withLongOpt("shapefile")
+        options.addOption(OptionBuilder.withLongOpt(OPT_SHAPEFILE)
                 .withDescription("Path to the input shapefile.")
                 .withArgName("SHPFILE")
                 .hasArg()
                 .isRequired()
                 .create());
-        options.addOption(OptionBuilder.withLongOpt("rulesfile")
+        options.addOption(OptionBuilder.withLongOpt(OPT_RULESFILE)
                 .withDescription("Path to the input rules file.")
                 .withArgName("RULESFILE")
                 .hasArg()
                 .create());
-        options.addOption(OptionBuilder.withLongOpt("osmfile")
+        options.addOption(OptionBuilder.withLongOpt(OPT_OSMFILE)
                 .withDescription("Prefix of the output file name.")
                 .withArgName("OSMFILE")
                 .hasArg()
                 .isRequired()
                 .create());
-        options.addOption(OptionBuilder.withLongOpt("outdir")
+        options.addOption(OptionBuilder.withLongOpt(OPT_OUTDIR)
                 .withDescription("Directory to output to. Default is working dir.")
                 .withArgName("OUTDIR")
                 .hasArg()
                 .create());
-        options.addOption(OptionBuilder.withLongOpt("maxnodes")
+        options.addOption(OptionBuilder.withLongOpt(OPT_MAXNODES)
                 .withDescription("Maximum elements per OSM file.")
                 .withArgName("nodes")
                 .hasArg()
                 .create());
-        options.addOption(OptionBuilder.withLongOpt("outputFormat")
+        options.addOption(OptionBuilder.withLongOpt(OPT_OUTPUTFORMAT)
                 .withDescription("The output format ('osm' or 'osmc' (default)).")
                 .withArgName("format")
                 .hasArg()
                 .create());
-        options.addOption(OptionBuilder.withLongOpt("glomKey")
+        options.addOption(OptionBuilder.withLongOpt(OPT_GLOMKEY)
                 .withDescription("The key to 'glom' on. Read the README for more info.")
                 .withArgName("key")
                 .hasArg()
                 .create());
-        options.addOption(OptionBuilder.withLongOpt("copyTags")
+        options.addOption(OptionBuilder.withLongOpt(OPT_COPYTAGS)
                 .withDescription("Copy all shapefile attributes to OSM tags verbatim, with an optional prefix.")
                 .withArgName("prefix")
                 .hasOptionalArg()
                 .create());
+        options.addOption(OPT_T, false, "Keep only tagged ways");
         
         boolean keepOnlyTaggedWays = false;
         try {
             CommandLine line = parser.parse(options, args, false);
             
-            if(line.hasOption("t")) {
+            if(line.hasOption(OPT_T)) {
                 keepOnlyTaggedWays = true;
             }
             
-            if(!line.hasOption("shapefile") || !line.hasOption("rulesfile") || !line.hasOption("osmfile")) {
+            if(!line.hasOption(OPT_SHAPEFILE) || !line.hasOption(OPT_RULESFILE) || !line.hasOption(OPT_OSMFILE)) {
                 System.out.println("Missing one of the required file paths.");
                 HelpFormatter formatter = new HelpFormatter();
                 formatter.printHelp("java -cp shp-to-osm.jar", options, true);
                 System.exit(-1);
             }
             
-            File shpFile = new File(line.getOptionValue("shapefile"));
+            File shpFile = new File(line.getOptionValue(OPT_SHAPEFILE));
             if(!shpFile.canRead()) {
                 System.out.println("Could not read the input shapefile.");
                 HelpFormatter formatter = new HelpFormatter();
@@ -106,52 +113,60 @@ public class Main {
                 System.exit(-1);
             }
             
-            final String filePrefix = line.getOptionValue("osmfile");
+            final String filePrefix = line.getOptionValue(OPT_OSMFILE);
             String rootDirStr;
-            if (line.hasOption("outdir")) {
-                rootDirStr = line.getOptionValue("outdir");
+            if (line.hasOption(OPT_OUTDIR)) {
+                rootDirStr = line.getOptionValue(OPT_OUTDIR);
             } else {
                 rootDirStr = ".";
             }
             File rootDirFile = new File(rootDirStr);
-            if (rootDirFile.exists() && rootDirFile.isDirectory()) {
-            } else {
+            if (!rootDirFile.exists() || !rootDirFile.isDirectory()) {
                 System.err.println("Specified outdir is not a directory: \"" + rootDirStr + "\".");
                 HelpFormatter formatter = new HelpFormatter();
                 formatter.printHelp("java -cp shp-to-osm.jar", options, true);
                 System.exit(-1);
             }
             
-            RuleSet rules = new RuleSet();
+            RuleSet ruleSet = null;
             
-            boolean useAllTags = line.hasOption("copyTags");
-            if (useAllTags) {
-                String allTagsPrefix = line.getOptionValue("copyTags", "");
-                rules.setUseAllTags(allTagsPrefix);
-            }
-
-            if (line.hasOption("rulesfile")) {
-                File rulesFile = new File(line.getOptionValue("rulesfile"));
+            if (line.hasOption(OPT_RULESFILE)) {
+                File rulesFile = new File(line.getOptionValue(OPT_RULESFILE));
                 if (!rulesFile.canRead()) {
                     System.out.println("Could not read the input rulesfile.");
                     HelpFormatter formatter = new HelpFormatter();
                     formatter.printHelp("java -cp shp-to-osm.jar", options, true);
                     System.exit(-1);
                 }
-                rules.appendRules(readFileToRulesSet(rulesFile));
+                
+                ruleSet = RuleSet.createFromRulesFile(rulesFile);
+            }
+            
+            boolean useAllTags = line.hasOption(OPT_COPYTAGS);
+            if (useAllTags) {
+                String allTagsPrefix = line.getOptionValue(OPT_COPYTAGS, "");
+                if (ruleSet != null) {
+                	ruleSet.setUseAllTags(allTagsPrefix);
+                } else {
+                	ruleSet = RuleSet.createWithCopyTagsPrefix(allTagsPrefix);
+                }
+            }
+            
+            if (ruleSet == null) {
+            	ruleSet = RuleSet.createEmptyRuleSet();
             }
             
             boolean shouldGlom = false;
             String glomKey = null;
-            if(line.hasOption("glomKey")) {
-                glomKey = line.getOptionValue("glomKey");
+            if(line.hasOption(OPT_GLOMKEY)) {
+                glomKey = line.getOptionValue(OPT_GLOMKEY);
                 shouldGlom = true;
                 System.out.println("Will attempt to glom on key \'" + glomKey + "\'.");
             }
 
             OSMOutputter outputter = new OSMChangeOutputter(rootDirFile, filePrefix, GENERATOR_STRING);
-            if(line.hasOption("outputFormat")) {
-                String type = line.getOptionValue("outputFormat");
+            if(line.hasOption(OPT_OUTPUTFORMAT)) {
+                String type = line.getOptionValue(OPT_OUTPUTFORMAT);
                 if("osm".equals(type)) {
                     outputter = new OSMOldOutputter(rootDirFile, filePrefix, GENERATOR_STRING);
                 }
@@ -165,8 +180,8 @@ public class Main {
             }
             
             int maxNodesPerFile = 50000;
-            if(line.hasOption("maxnodes")) {
-                String maxNodesString = line.getOptionValue("maxnodes");
+            if(line.hasOption(OPT_MAXNODES)) {
+                String maxNodesString = line.getOptionValue(OPT_MAXNODES);
                 try {
                     maxNodesPerFile = Integer.parseInt(maxNodesString);
                 } catch(NumberFormatException e) {
@@ -176,7 +191,7 @@ public class Main {
             }
             outputter.setMaxElementsPerFile(maxNodesPerFile);
             
-            ShpToOsmConverter conv = new ShpToOsmConverter(shpFile, rules, keepOnlyTaggedWays, outputter);
+            ShpToOsmConverter conv = new ShpToOsmConverter(shpFile, ruleSet, keepOnlyTaggedWays, outputter);
             conv.convert();
         } catch (IOException e) {
             log.log(Level.WARNING, "Error reading rules file.", e);
@@ -190,91 +205,5 @@ public class Main {
         
     }
 
-    /**
-     * @param file
-     * @return
-     * @throws IOException 
-     */
-    private static RuleSet readFileToRulesSet(File file) throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader(file));
-        
-        RuleSet rules = new RuleSet();
-        
-        String line;
-        int lineCount = 0;
-        while ((line = br.readLine()) != null) {
-            lineCount++;
-            
-            String trimmedLine = line.trim();
-            
-            // Skip comments
-            if(trimmedLine.startsWith("#")) {
-                continue;
-            }
-            
-            // Skip empty lines
-            if("".equals(trimmedLine)) {
-                continue;
-            }
-            
-            String[] splits = line.split(",", 5);
-            if (splits.length == 5) {
-                String type = splits[0];
-                String srcKey = splits[1];
-                String srcValue = splits[2];
-                String targetKey = StringEscapeUtils.escapeXml(splits[3]);
-                String targetValue = StringEscapeUtils.escapeXml(splits[4]);
-
-                Rule r;
-
-                // If they don't specify a srcValue...
-                if ("".equals(srcValue)) {
-                    srcValue = null;
-                }
-
-                if ("-".equals(targetValue)) {
-                    r = new Rule(type, srcKey, srcValue, targetKey);
-                } else {
-                    r = new Rule(type, srcKey, srcValue, targetKey, targetValue);
-                }
-
-                log.log(Level.CONFIG, "Adding rule " + r);
-                if ("inner".equals(type)) {
-                    rules.addInnerPolygonRule(r);
-                } else if ("outer".equals(type)) {
-                    rules.addOuterPolygonRule(r);
-                } else if ("line".equals(type)) {
-                    rules.addLineRule(r);
-                } else if ("point".equals(type)) {
-                    rules.addPointRule(r);
-                } else {
-                    log.log(Level.WARNING, "Line " + lineCount + ": Unknown type " + type);
-                }
-            } else if (splits.length == 4) {
-                try {
-                    PrimitiveTypeEnum type = PrimitiveTypeEnum.valueOf(splits[0]);
-                    String action = splits[1];
-                    String key = splits[2];
-                    String value = splits[3];
-        
-                    if ("exclude".equals(action)) {
-                        ExcludeRule excludeFilter = new ExcludeRule(type, key, value);
-                        rules.addFilter(excludeFilter);
-                        log.log(Level.CONFIG, "Adding exclude filter " + excludeFilter);
-                    }
-                } catch(IllegalArgumentException e) {
-                    log.log(Level.WARNING, "Skipped line " + lineCount + ": \""
-                        + line + "\". Unknown primtive type specified. Unless you're trying to do" +
-                        		" an exclude rule, you probably didn't put enough commas in.");
-                }
-            } else {
-                log.log(Level.WARNING, "Skipped line " + lineCount + ": \""
-                        + line + "\". Had " + splits.length
-                        + " pieces and expected 5 or 3.");
-                continue;
-            }
-        }
-        
-        return rules;
-    }
+    
 }
