@@ -4,7 +4,6 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.text.NumberFormat;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -20,12 +19,8 @@ import com.yellowbkpk.osm.relation.Relation;
 
 public class OSMChangeOutputter extends AbstractOutputter {
 
-    private static final NumberFormat LAT_LON_FORMAT = NumberFormat.getInstance();
-    static{
-        LAT_LON_FORMAT.setGroupingUsed(false);
-        LAT_LON_FORMAT.setMaximumFractionDigits(7);
-    }
-
+	private static CoordinateStringUtil coordFormatter = new CoordinateStringUtil();
+	
     private static Logger log = Logger.getLogger(OSMChangeOutputter.class.getName());
     
     private File rootDir;
@@ -146,9 +141,9 @@ public class OSMChangeOutputter extends AbstractOutputter {
             out.write("    <node id=\"");
             out.write(Integer.toString(node.getID()));
             out.write("\" lat=\"");
-            out.write(LAT_LON_FORMAT.format(node.getLat()));
+            out.write(coordFormatter.formatCoordinate(node.getLat()));
             out.write("\" lon=\"");
-            out.write(LAT_LON_FORMAT.format(node.getLon()));
+            out.write(coordFormatter.formatCoordinate(node.getLon()));
             out.write("\"");
     
             if (node.hasTags()) {

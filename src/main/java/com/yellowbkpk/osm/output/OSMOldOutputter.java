@@ -4,7 +4,6 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.text.NumberFormat;
 import java.util.Iterator;
 
 import com.yellowbkpk.osm.OSMFile;
@@ -18,12 +17,8 @@ import com.yellowbkpk.osm.relation.Relation;
 
 public class OSMOldOutputter extends AbstractOutputter {
 
-    private static final NumberFormat LAT_LON_FORMAT = NumberFormat.getInstance();
-    static{
-        LAT_LON_FORMAT.setGroupingUsed(false);
-        LAT_LON_FORMAT.setMaximumFractionDigits(7);
-    }
-
+	private static CoordinateStringUtil coordFormatter = new CoordinateStringUtil();
+	
     private File rootDir;
     private String filePre;
     private int count = 0;
@@ -139,8 +134,8 @@ public class OSMOldOutputter extends AbstractOutputter {
     
             out.write("  <node ");
             writePrimitveAttrs(out, node);
-            writeAttr(out, "lat", LAT_LON_FORMAT.format(node.getLat()));
-            writeAttr(out, "lon", LAT_LON_FORMAT.format(node.getLon()));
+            writeAttr(out, "lat", coordFormatter.formatCoordinate(node.getLat()));
+            writeAttr(out, "lon", coordFormatter.formatCoordinate(node.getLon()));
     
             if (node.hasTags()) {
                 out.write(">\n");
